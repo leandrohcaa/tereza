@@ -61,19 +61,21 @@ INSERT INTO usuarios (nome) VALUES ('IGOR HENRIQUE');
 INSERT INTO usuarios (nome) VALUES ('DIEGO ALMEIDA');
 INSERT INTO usuarios (nome) VALUES ('JEFERSON CESAR');
 
-CREATE OR REPLACE VIEW tereza.saldo_usuarios AS
+CREATE OR REPLACE VIEW tereza.saldo_usuarios as
 SELECT 
     u.id as usuario_id,
-    u.nome as usuario_nome,
-    r.data,
-    r.compras,
-    r.premiacao,
-    r.premiacao - r.compras as saldo_dia,
-    SUM(r.premiacao - r.compras) OVER (
-        PARTITION BY r.usuario_id 
-        ORDER BY r.data
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-    ) as saldo_acumulado
-FROM tereza.usuarios u
-JOIN tereza.resultados r ON u.id = r.usuario_id
+    MIN(u.nome) as usuario_nome,
+    r.data as data,
+    - SUM(r.compras) as compras,
+    SUM(r.premiacao) as premiacao,
+    - SUM(r.compras) + SUM(r.premiacao) as saldo_dia,
+    (
+        SELECT coalesce(- SUM(r2.compras) + SUM(r2.premiacao), 0)
+        FROM tereza.resultados r2
+        WHERE r2.usuario_id = u.id
+        AND r2.data < r.data
+    ) + SUM(r.premiacao) - SUM(r.compras) as saldo_acumulado
+FROM tereza.resultados r 
+	join tereza.usuarios u on u.id = r.usuario_id
+group by u.id, r.data
 ORDER BY u.nome, r.data;

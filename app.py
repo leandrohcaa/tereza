@@ -153,7 +153,6 @@ SALDOS_TEMPLATE = """
             <tr>
                 <th>Data</th>
                 <th>Usuário</th>
-                <th>UUID</th>
                 <th>Compras</th>
                 <th>Premiação</th>
                 <th>Saldo do Dia</th>
@@ -165,7 +164,6 @@ SALDOS_TEMPLATE = """
             <tr>
                 <td>{{ saldo.data }}</td>
                 <td>{{ saldo.usuario_nome }}</td>
-                <td class="uuid">{{ saldo.usuario_id }}</td>
                 <td class="negative">{{ "R$ {:.2f}".format(saldo.compras) }}</td>
                 <td class="positive">{{ "R$ {:.2f}".format(saldo.premiacao) }}</td>
                 <td class="{{ 'positive' if saldo.saldo_dia >= 0 else 'negative' }}">
@@ -182,50 +180,11 @@ SALDOS_TEMPLATE = """
 </html>
 """
 
-@app.route('/')
+@app.route('/admin/resultados')
 def index():
     # Get all results with user information
     resultados = Resultado.query.join(Usuario).order_by(Resultado.data.desc()).all()
     return render_template_string(HTML_TEMPLATE, resultados=resultados)
-
-@app.route('/saldos')
-def saldos():
-    # Get all saldos with user information
-    saldos = SaldoUsuario.query.order_by(SaldoUsuario.usuario_nome, SaldoUsuario.data.desc()).all()
-    return render_template_string(SALDOS_TEMPLATE, saldos=saldos)
-
-@app.route('/api/resultados')
-def api_resultados():
-    # Get all results with user information
-    resultados = Resultado.query.join(Usuario).order_by(Resultado.data.desc()).all()
-    
-    # Convert to JSON
-    resultados_json = [{
-        'data': str(resultado.data),
-        'usuario': resultado.usuario.nome,
-        'torneio': resultado.torneio,
-        'compras': float(resultado.compras),
-        'premiacao': float(resultado.premiacao)
-    } for resultado in resultados]
-    
-    return jsonify(resultados_json)
-
-@app.route('/api/saldos')
-def api_saldos():
-    # Get all saldos with user information
-    saldos = SaldoUsuario.query.order_by(SaldoUsuario.usuario_nome, SaldoUsuario.data.desc()).all()
-    
-    # Convert to JSON
-    saldos_json = [{
-        'data': str(saldo.data),
-        'usuario': saldo.usuario_nome,
-        'compras': float(saldo.compras),
-        'premiacao': float(saldo.premiacao),
-        'saldo_dia': float(saldo.saldo_dia),
-        'saldo_acumulado': float(saldo.saldo_acumulado)
-    } for saldo in saldos]
-    
-    return jsonify(saldos_json)
 
 @app.route('/usuario/<string:usuario_id>')
 def usuario_resultados(usuario_id):
@@ -241,42 +200,6 @@ def usuario_saldos(usuario_id):
     saldos = SaldoUsuario.query.filter_by(usuario_id=usuario_id).order_by(SaldoUsuario.data.desc()).all()
     
     return render_template_string(SALDOS_TEMPLATE, saldos=saldos)
-
-@app.route('/api/usuario/<string:usuario_id>/resultados')
-def api_usuario_resultados(usuario_id):
-    # Check if user exists
-    usuario = Usuario.query.get_or_404(usuario_id)
-    
-    # Get results for specific user
-    resultados = Resultado.query.filter_by(usuario_id=usuario_id).order_by(Resultado.data.desc()).all()
-    
-    # Convert to JSON
-    resultados_json = [{
-        'data': str(resultado.data),
-        'usuario': resultado.usuario.nome,
-        'torneio': resultado.torneio,
-        'compras': float(resultado.compras),
-        'premiacao': float(resultado.premiacao)
-    } for resultado in resultados]
-    
-    return jsonify(resultados_json)
-
-@app.route('/api/usuario/<string:usuario_id>/saldos')
-def api_usuario_saldos(usuario_id):
-    # Get saldos for specific user
-    saldos = SaldoUsuario.query.filter_by(usuario_id=usuario_id).order_by(SaldoUsuario.data.desc()).all()
-    
-    # Convert to JSON
-    saldos_json = [{
-        'data': str(saldo.data),
-        'usuario': saldo.usuario_nome,
-        'compras': float(saldo.compras),
-        'premiacao': float(saldo.premiacao),
-        'saldo_dia': float(saldo.saldo_dia),
-        'saldo_acumulado': float(saldo.saldo_acumulado)
-    } for saldo in saldos]
-    
-    return jsonify(saldos_json)
 
 if __name__ == '__main__':
     app.run(debug=True) 
