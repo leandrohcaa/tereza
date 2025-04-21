@@ -40,6 +40,18 @@ class Resultado(db.Model):
 
     usuario = db.relationship('Usuario', back_populates='resultados')
 
+class SaldoUsuario(db.Model):
+    __tablename__ = 'saldo_usuarios'
+    __table_args__ = {'schema': 'tereza'}
+    
+    usuario_id = db.Column(db.String(36), primary_key=True)
+    usuario_nome = db.Column(db.String(100))
+    data = db.Column(db.Date, primary_key=True)
+    compras = db.Column(db.Numeric(12, 2))
+    premiacao = db.Column(db.Numeric(12, 2))
+    saldo_dia = db.Column(db.Numeric(12, 2))
+    saldo_acumulado = db.Column(db.Numeric(12, 2))
+
 # HTML template for the table
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -99,11 +111,88 @@ HTML_TEMPLATE = """
 </html>
 """
 
+# HTML template for saldos
+SALDOS_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Saldos dos Usuários</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .uuid {
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .positive {
+            color: green;
+        }
+        .negative {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Saldos dos Usuários</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Usuário</th>
+                <th>UUID</th>
+                <th>Compras</th>
+                <th>Premiação</th>
+                <th>Saldo do Dia</th>
+                <th>Saldo Acumulado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for saldo in saldos %}
+            <tr>
+                <td>{{ saldo.data }}</td>
+                <td>{{ saldo.usuario_nome }}</td>
+                <td class="uuid">{{ saldo.usuario_id }}</td>
+                <td class="negative">{{ "R$ {:.2f}".format(saldo.compras) }}</td>
+                <td class="positive">{{ "R$ {:.2f}".format(saldo.premiacao) }}</td>
+                <td class="{{ 'positive' if saldo.saldo_dia >= 0 else 'negative' }}">
+                    {{ "R$ {:.2f}".format(saldo.saldo_dia) }}
+                </td>
+                <td class="{{ 'positive' if saldo.saldo_acumulado >= 0 else 'negative' }}">
+                    {{ "R$ {:.2f}".format(saldo.saldo_acumulado) }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+"""
+
 @app.route('/')
 def index():
     # Get all results with user information
     resultados = Resultado.query.join(Usuario).order_by(Resultado.data.desc()).all()
     return render_template_string(HTML_TEMPLATE, resultados=resultados)
+
+@app.route('/saldos')
+def saldos():
+    # Get all saldos with user information
+    saldos = SaldoUsuario.query.order_by(SaldoUsuario.usuario_nome, SaldoUsuario.data.desc()).all()
+    return render_template_string(SALDOS_TEMPLATE, saldos=saldos)
 
 @app.route('/api/resultados')
 def api_resultados():
@@ -121,6 +210,23 @@ def api_resultados():
     
     return jsonify(resultados_json)
 
+@app.route('/api/saldos')
+def api_saldos():
+    # Get all saldos with user information
+    saldos = SaldoUsuario.query.order_by(SaldoUsuario.usuario_nome, SaldoUsuario.data.desc()).all()
+    
+    # Convert to JSON
+    saldos_json = [{
+        'data': str(saldo.data),
+        'usuario': saldo.usuario_nome,
+        'compras': float(saldo.compras),
+        'premiacao': float(saldo.premiacao),
+        'saldo_dia': float(saldo.saldo_dia),
+        'saldo_acumulado': float(saldo.saldo_acumulado)
+    } for saldo in saldos]
+    
+    return jsonify(saldos_json)
+
 @app.route('/usuario/<string:usuario_id>')
 def usuario_resultados(usuario_id):
     # Get results for specific user
@@ -128,6 +234,13 @@ def usuario_resultados(usuario_id):
     resultados = Resultado.query.filter_by(usuario_id=usuario_id).order_by(Resultado.data.desc()).all()
     
     return render_template_string(HTML_TEMPLATE, resultados=resultados)
+
+@app.route('/usuario/<string:usuario_id>/saldos')
+def usuario_saldos(usuario_id):
+    # Get saldos for specific user
+    saldos = SaldoUsuario.query.filter_by(usuario_id=usuario_id).order_by(SaldoUsuario.data.desc()).all()
+    
+    return render_template_string(SALDOS_TEMPLATE, saldos=saldos)
 
 @app.route('/api/usuario/<string:usuario_id>/resultados')
 def api_usuario_resultados(usuario_id):
@@ -147,6 +260,23 @@ def api_usuario_resultados(usuario_id):
     } for resultado in resultados]
     
     return jsonify(resultados_json)
+
+@app.route('/api/usuario/<string:usuario_id>/saldos')
+def api_usuario_saldos(usuario_id):
+    # Get saldos for specific user
+    saldos = SaldoUsuario.query.filter_by(usuario_id=usuario_id).order_by(SaldoUsuario.data.desc()).all()
+    
+    # Convert to JSON
+    saldos_json = [{
+        'data': str(saldo.data),
+        'usuario': saldo.usuario_nome,
+        'compras': float(saldo.compras),
+        'premiacao': float(saldo.premiacao),
+        'saldo_dia': float(saldo.saldo_dia),
+        'saldo_acumulado': float(saldo.saldo_acumulado)
+    } for saldo in saldos]
+    
+    return jsonify(saldos_json)
 
 if __name__ == '__main__':
     app.run(debug=True) 
